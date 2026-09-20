@@ -1,0 +1,29 @@
+# Applied via `kubectl apply -f` as a runbook step, not by Terraform (Karpenter's
+# CRDs don't exist until the Karpenter Helm release itself is installed — see
+# docs/deployment.md for exact ordering).
+#
+# instanceProfile below must match the `node_instance_profile_name` output of
+# the eks/karpenter Terragrunt unit (eks-prod-karpenter-node).
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: eks-prod-default
+spec:
+  amiFamily: AL2023
+  instanceProfile: eks-prod-karpenter-node
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: eks-prod
+        use: worker
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: eks-prod
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  tags:
+    karpenter.sh/managed-by: eks-prod

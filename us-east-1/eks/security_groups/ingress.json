@@ -1,0 +1,16 @@
+[
+  {
+    "from_port"   : 443,
+    "to_port"     : 443,
+    "protocol"    : "tcp",
+    "cidr_blocks" : ["10.1.0.0/16"],
+    "description" : "Allow worker nodes to communicate with the Kubernetes API server"
+  },
+  {
+    "from_port"   : 10250,
+    "to_port"     : 10250,
+    "protocol"    : "tcp",
+    "cidr_blocks" : ["10.1.0.0/16"],
+    "description" : "Allow control plane to reach kubelet on worker nodes"
+  }
+]
