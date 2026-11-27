@@ -7,8 +7,11 @@ dependency "cluster" {
   config_path = "../../cluster"
 }
 
-dependency "storage_class" {
-  config_path = "../../storage_class"
+# storage_class has no outputs of its own (it's just a kubernetes_storage_class_v1
+# resource) - a plain `dependency` block fails Terragrunt's output resolution for
+# a zero-output target, so this is ordering-only via `dependencies`.
+dependencies {
+  paths = ["../../storage_class"]
 }
 
 include "root" {
