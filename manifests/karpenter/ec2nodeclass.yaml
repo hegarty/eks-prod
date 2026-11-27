@@ -10,6 +10,8 @@ metadata:
   name: eks-prod-default
 spec:
   amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
   instanceProfile: eks-prod-karpenter-node
   subnetSelectorTerms:
     - tags:

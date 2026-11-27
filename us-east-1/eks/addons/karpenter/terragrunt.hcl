@@ -11,6 +11,10 @@ dependency "karpenter_iam" {
   config_path = "../../karpenter"
 }
 
+dependency "karpenter_crds" {
+  config_path = "../karpenter_crds"
+}
+
 include "root" {
   path   = find_in_parent_folders("root.hcl")
   expose = true
@@ -28,9 +32,9 @@ terraform {
 inputs = {
   cluster_name  = dependency.cluster.outputs.cluster_name
   release_name  = "karpenter"
-  repository    = "oci://public.ecr.aws/karpenter/karpenter"
+  repository    = "oci://public.ecr.aws/karpenter"
   chart         = "karpenter"
-  chart_version = "1.0.8"
+  chart_version = "1.6.1"
   namespace     = "kube-system"
 
   helm_values = {
