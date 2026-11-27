@@ -45,4 +45,17 @@ inputs = {
   # controllerManager/scheduler logs. Bump back to the full 5-type list if
   # you need to debug the control plane itself.
   enabled_cluster_log_types = ["api", "audit"]
+
+  # Without this, Karpenter nodes (whose EC2NodeClass selects security
+  # groups by this same tag — see manifests/karpenter/ec2nodeclass.yaml)
+  # never join the cluster's auto-created security group, which is the
+  # one carrying its self-referencing allow-all rule. They end up isolated
+  # from the rest of the node fleet on anything not explicitly opened in
+  # security_groups/ingress.json (443/10250 only) - including the VXLAN
+  # port Cilium needs for cross-node pod traffic. Confirmed directly: a
+  # Karpenter node and the static node group's node could not reach each
+  # other at all until this tag was added.
+  cluster_security_group_tags = {
+    "karpenter.sh/discovery" = "eks-prod"
+  }
 }
