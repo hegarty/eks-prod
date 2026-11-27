@@ -7,8 +7,11 @@ dependency "cluster" {
   config_path = "../../cluster"
 }
 
-dependency "storage_class" {
-  config_path = "../../storage_class"
+# storage_class has no outputs of its own (it's just a kubernetes_storage_class_v1
+# resource) - a plain `dependency` block fails Terragrunt's output resolution for
+# a zero-output target, so this is ordering-only via `dependencies`.
+dependencies {
+  paths = ["../../storage_class"]
 }
 
 include "root" {
@@ -35,14 +38,36 @@ inputs = {
   create_namespace = true
   timeout_seconds  = 900
 
+  # The chart's startupProbe/livenessProbe exec commands curl an admin API
+  # hostname with a trailing dot (via a different template helper than the
+  # postStart/preStop hooks use) - that trailing-dot form reliably fails to
+  # resolve (confirmed: curl exit 6, ~9.8s) even though the identical name
+  # without the dot resolves instantly. No values path exists to fix the
+  # probe commands themselves, so this replaces them via postrender - see
+  # fix-probes.sh for the full explanation and the actual yq logic.
+  postrender_enabled     = true
+  postrender_binary_path = "${get_terragrunt_dir()}/fix-probes.sh"
+  postrender_args        = []
+
   helm_values = {
     statefulset = {
       replicas = 1
+
+      # This one IS read by the chart template (unlike startupProbe above)
+      # - keeping it for when the probe handoff reaches readiness, same
+      # curl -m 5 vs. default-1s mismatch would otherwise recur there too.
+      readinessProbe = { timeoutSeconds = 5 }
     }
 
     resources = {
       cpu    = { cores = "1" }
-      memory = { container = { max = "1500Mi", min = "750Mi" } }
+      # The chart allocates redpanda = 0.8 * container, plus a near-fixed
+      # ~202Mi reserve on top (container must clear redpanda+reserve - rules
+      # out 750Mi/1000Mi). Separately, the redpanda binary itself hard-
+      # refuses to start below 1024Mi of its own allocation ("Memory: ...
+      # below recommended: 1073741824") - at 0.8x that means container must
+      # be >= ~1280Mi; 1200Mi (960Mi share) still failed this on its own.
+      memory = { container = { max = "1500Mi", min = "1400Mi" } }
     }
 
     storage = {
@@ -66,6 +91,22 @@ inputs = {
       enabled = true
       resources = {
         requests = { cpu = "25m", memory = "64Mi" }
+      }
+      # Same trailing-dot bug as the probes above, this time in Console's
+      # auto-generated admin API URL - the chart merges user-supplied
+      # console.config over its own generated config (user values win). The
+      # path is console.console.config, not console.config - "console" here
+      # is a subchart, and its OWN values schema has a nested "console" key
+      # (confirmed in the subchart's template source: $consoleValue.console).
+      console = {
+        config = {
+          redpanda = {
+            adminApi = {
+              enabled = true
+              urls    = ["http://redpanda.redpanda.svc.cluster.local:9644"]
+            }
+          }
+        }
       }
     }
 

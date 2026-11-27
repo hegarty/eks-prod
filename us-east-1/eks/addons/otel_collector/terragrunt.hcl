@@ -33,6 +33,12 @@ inputs = {
     mode         = "deployment"
     replicaCount = 1
 
+    # No default - this chart stopped shipping one. The "loki" exporter
+    # below only exists in the contrib distribution, not core.
+    image = {
+      repository = "otel/opentelemetry-collector-contrib"
+    }
+
     resources = {
       requests = { cpu = "50m", memory = "128Mi" }
       limits   = { memory = "256Mi" }
