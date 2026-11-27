@@ -7,6 +7,10 @@ dependency "node_role" {
   config_path = "../../iam/node_role"
 }
 
+dependency "cluster" {
+  config_path = "../../cluster"
+}
+
 include "root" {
   path   = find_in_parent_folders("root.hcl")
   expose = true
@@ -17,7 +21,7 @@ terraform {
 }
 
 inputs = {
-  cluster_name      = "eks-prod"
+  cluster_name      = dependency.cluster.outputs.cluster_name
   principal_arn     = dependency.node_role.outputs.arn
   node_type         = "EC2_LINUX"
   policy_arn        = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAutoNodePolicy"
