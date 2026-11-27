@@ -9,6 +9,12 @@ observability stack (Prometheus/Grafana/Loki/Tempo/OTel Collector), so its fixed
 (EKS control plane, NAT Gateway) amortize across whatever unrelated workloads land on it
 over time — not just the first one.
 
+## Lifecycle tooling
+
+Bringing this cluster up/down, checking its status, and (once they exist) deploying its
+applications is orchestrated by [`hegarty/eks-lifecycle`](https://github.com/hegarty/eks-lifecycle)
+— a separate repo, not part of this one. See that repo's `README.md`/`ADR.md`.
+
 ## Layout
 
 ```
