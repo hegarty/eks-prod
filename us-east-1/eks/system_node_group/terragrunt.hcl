@@ -30,7 +30,7 @@ terraform {
 # observability) is scheduled onto Karpenter-managed nodes.
 inputs = {
   name           = "eks-prod-system"
-  instance_types = ["t4g.medium"]
+  instance_types = ["t4g.xlarge"]
   ami_type       = "AL2023_ARM_64_STANDARD"
   capacity_type  = "ON_DEMAND"
 
