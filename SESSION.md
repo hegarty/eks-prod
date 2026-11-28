@@ -1,7 +1,7 @@
 # SESSION.md — running context for Claude
 
 Read this first if picking up this project cold. This cluster went from
-"nothing applied" to a mostly-healthy, real bring-up in one long session
+"nothing applied" to a fully applied platform layer in one long session
 (2026-11-22 through 2026-11-27) — almost every real bug below was found by
 actually running `eks-lifecycle` against live AWS, not by code review. Full
 blow-by-blow is in the conversation history; this file is the durable
@@ -34,9 +34,35 @@ for the entire 2026-11-22→2026-11-27 span (1,383 restarts at its worst) —
 see "Resolved" below for the real root cause and fix, found via a genuine
 cross-node Cilium/security-group investigation, not a chart bug.
 
-**Not yet reached**: `access_entries/karpenter_node` and anything
-downstream of it in the dependency graph — `resume` was blocked on
-`redpanda` this entire time and hasn't been re-run since the fix landed.
+**Full graph applied (2026-11-27 evening)**: `eks-lifecycle resume`
+completed end to end. Verified live afterwards:
+- Every Helm release is `deployed` (cert-manager, cilium, karpenter +
+  karpenter-crd, kube-prometheus-stack, loki, otel-collector, redpanda,
+  tempo — `tempo` installed for the first time on this run), all pods
+  Running/Completed, both nodes `Ready`.
+- `access_entries/karpenter_node` landed: `eks-prod-karpenter-node` is in
+  `aws eks list-access-entries`, alongside `eks-prod_node-role` (nodes)
+  and the `AWSReservedSSO_org-admin_…` role (users).
+- `datadir-redpanda-0` survived the Redpanda reinstall (same PV, original
+  age) — the broker reattached to its existing volume.
+
+**Unexplained, not blocking**: `nodepool/eks-prod-default` reports
+`NODES 0` — the Karpenter-launched node noted below has since gone, and
+the newer node (`ip-10-1-11-0`) appears not to be Karpenter's. The static
+node group is carrying everything. To prove Karpenter still provisions
+with the new access entry in place, scale a test deployment past current
+capacity and watch for a NodeClaim.
+
+**Stuck `pending-install` Redpanda release (resolved 2026-11-27)**: the
+first post-fix `resume` failed on `addons/redpanda` with `cannot re-use a
+name that is still in use`. An earlier apply (2026-11-24 19:02) had been
+killed before Helm finalized it, leaving release revision 1 at
+`pending-install` (secret `sh.helm.release.v1.redpanda.v1`) — untracked by
+Terraform state, but still holding the name, with its workloads running.
+Fix: `helm uninstall redpanda -n redpanda` (the PVC is created by the
+StatefulSet's volumeClaimTemplate, not Helm, so it survives), then
+`eks-lifecycle resume`. If any addon apply is ever interrupted, check
+`helm list -A -a` for `pending-*` releases before re-running.
 
 **Correction to an earlier wrong call, recorded here so it isn't repeated**:
 this session initially concluded "no published Karpenter version supports
@@ -301,11 +327,11 @@ iteration, it matters for anyone doing a clean checkout later.
 
 ## Next steps
 
-1. Re-run `eks-lifecycle resume` now that `redpanda` (broker + console) is
-   genuinely healthy and everything is committed — should continue through
-   `access_entries/karpenter_node` and whatever comes after. Re-verify the
-   graph rather than assume the previously-known order still holds; the
-   node fleet has cycled several times since this was last checked.
+1. ~~Re-run `eks-lifecycle resume`~~ — done 2026-11-27, completed end to
+   end (see "Full graph applied" above). Remaining follow-up: verify
+   Karpenter still provisions (NodePool currently shows 0 nodes), then
+   move on to the application layer (`ROADMAP.md` item 6 —
+   `shop_ingestor`/`shop_analytics`/`shop_notifier` have no charts yet).
 2. Decide whether to close the container-log/Kubernetes-Events observability
    gap now (see above) or defer it — it's real, but net-new scope, not a
    blocker for anything currently in progress.
